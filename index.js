@@ -49,7 +49,7 @@ class Player {
      * @param {number} y 
      * @param {boolean} isBot
      */
-    constructor(isBot, color = "green", x = 0, y = 0, width, height) {
+    constructor(isBot, color = "green", x = 0, y = 0, width, height, maxSpeed) {
         this.position = new Vector(x, y);
         this.score = 0;
         this.isBot = isBot;
@@ -59,6 +59,10 @@ class Player {
         this.callbacks = [];
         this.vertVelocity = 0;
         this.acceleration = 0;
+        this.velocityIncrements = 0;
+        this.velocityIncrementFactor = 8;
+        this.maxSpeed = maxSpeed;
+        this.ballWithinRange = false;
     }
 
     /**
@@ -67,7 +71,7 @@ class Player {
      */
     draw(context) {
         context.fillStyle = this.color;
-        console.log(this.color);
+        //console.log(this.color);
         context.fillRect(this.position.x, this.position.y, 20, 80);
     }
 
@@ -96,6 +100,8 @@ class Ball {
         this.radius = radius;
         this.color = color;
         this.callbacks = [];
+
+
     }
 
     /**
@@ -148,11 +154,12 @@ class GameState {
         this.y_vect = Math.floor(Math.random() * 4);
         this.x_vect = this.y_vect + 1 + Math.floor(Math.random() * 4);
 
+        this.eventSubscribers = [];
 
         let pheight = 80;
         let pwidth = 20;
-        this.human = new Player(false, "white", this.v_xstart, this.v_ystart, pwidth, pheight);
-        this.bot = new Player(true, "white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight);
+        this.human = new Player(false, "white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
+        this.bot = new Player(true, "white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, 40);
 
         this.winscore = winscore;
         this.ball = new Ball(Math.floor(this.v_width / 2), Math.floor(this.v_height / 2), this.x_vect, this.y_vect, "white", this.v_radius);
@@ -164,7 +171,7 @@ class GameState {
              * @param {Player} arg 
              */
             (arg) => {
-                const ball = this.ball;
+                /*const ball = this.ball;
                 let bot_ycenter = this.bot.position.x - this.bot.height >> 1;
 
                 let d_x = arg.position.x - ball.position.x;
@@ -180,7 +187,34 @@ class GameState {
 
                 if (projTravel < needTravel) arg.acceleration++;
                 else arg.acceleration--;
+                */
+1
 
+                let bot_b = arg.position.y + arg.height;
+                let bot_t = arg.position.y;
+                let ball_y = this.ball.position.y;
+                let bot_center = bot_t + arg.height/2;
+                let hor_dist = arg.position.x - (this.ball.position.x + this.ball.radius);
+
+                //console.log(bot_t);
+                //console.log(bot_b);
+                //console.log(ball_y);
+            
+
+                if (ball_y > bot_b){
+                    arg.ballWithinRange = false;
+                    arg.acceleration = 1;
+                } else if (ball_y < bot_t){
+                    arg.ballWithinRange = false;
+                    arg.acceleration = -1;
+                } else {
+                    if (hor_dist >= 0 && hor_dist <= 3*arg.height)arg.ballWithinRange = true;
+                    else arg.ballWithinRange = false;
+                    if (ball_y > bot_center) arg.acceleration = 1;
+                    if (ball_y < bot_center) arg.acceleration = -1;
+                }
+                //console.log(arg.acceleration);
+                //console.log(arg.vertVelocity)
 
             });
 
@@ -190,10 +224,24 @@ class GameState {
              * @param {Player} arg 
              */
             (arg) => {
-                console.log(arg.acceleration);
-                console.log(arg.position);
-                arg.vertVelocity += arg.acceleration;
-                arg.position.y += arg.vertVelocity;
+                //console.log(arg.acceleration);
+                //console.log(arg.position);
+
+                const collisionCheck = () => {
+                    if (arg.position.y <= 0 || arg.position.y + arg.height >= this.v_height) return true;
+                    return false;
+                }
+
+                arg.vertVelocity = arg.ballWithinRange?(arg.vertVelocity + arg.acceleration) % 5:(arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
+
+                if(!collisionCheck()){
+                    //console.log("collider");
+                    arg.position.y += arg.vertVelocity;
+                } else {
+                    if((arg.vertVelocity > 0 && arg.position.y <= 0) || (arg.vertVelocity < 0 && arg.position.y + arg.height >= this.v_height)){
+                        arg.position.y += arg.vertVelocity;
+                    }
+                }
             }
         );
 
@@ -202,12 +250,87 @@ class GameState {
              * @param {Ball} arg
              */
             (arg) =>{
-                
+                const collState = {
+                    NONE:0,
+                    VERTICAL_TOP:1,
+                    VERTICAL_BOTTOM:2,
+                    HORIZONTAL_LEFT:3,
+                    HORIZONTAL_RIGHT:4,
+                    PLAYER_RIGHT:5,
+                    PLAYER_LEFT:6
+                }
+
+
+                //console.log("ball collision check;");
+                const bot = this.bot;
+                const human = this.human;
+                const collisionCheck = ()=>{
+                    if(arg.position.x <= arg.radius) return collState.HORIZONTAL_LEFT;
+                    if(arg.position.x >= this.v_width - arg.radius) return collState.HORIZONTAL_RIGHT;
+                    if(arg.position.y <= arg.radius) return collState.VERTICAL_TOP;
+                    if(arg.position.y >= this.v_height - arg.radius) return collState.VERTICAL_BOTTOM;
+                    if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return collState.PLAYER_RIGHT;
+                    if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return collState.PLAYER_LEFT;
+
+
+                    return collState.NONE;                    
+                }
+
+                const collCheck = collisionCheck();
+                switch (collCheck) {
+                    case collState.HORIZONTAL_LEFT:
+                            arg.velocity.x = -arg.velocity.x;
+                            arg.position.x = arg.radius + 1;
+                        break;
+                    case collState.HORIZONTAL_RIGHT:
+                            arg.velocity.x = -arg.velocity.x;
+                            arg.position.x = this.v_width - (arg.radius + 1);
+                        break;
+                    case collState.VERTICAL_BOTTOM:
+                            arg.velocity.y = -arg.velocity.y;
+                            arg.position.y = this.v_height - (arg.radius + 1);
+                        break;
+                    case collState.VERTICAL_TOP:
+                            arg.velocity.y = -arg.velocity.y;
+                            arg.position.y = arg.radius + 1;
+                        break;
+                    case collState.PLAYER_RIGHT:
+                            arg.velocity.x = -arg.velocity.x;
+                            arg.position.x = bot.position.x - (arg.radius + 1);
+                            if(bot.vertVelocity > 2) arg.velocity.y--;
+                            if(bot.vertVelocity < 2) arg.velocity.y++;
+                        break;
+                    case collState.PLAYER_LEFT:
+                            arg.velocity.x = -arg.velocity.x;
+                            arg.position.x = human.position.x + human.width + (arg.radius + 1); 
+                        break;
+                    default:
+                        break;
+                }
+
+                //console.log(arg.velocity);
+               
             }
         )
 
+   
+
         this.drawable = [this.ball, this.human, this.bot];
         this.movable = [this.ball];
+        this.eventSubscribers.push({
+            type:"keydown", "fun": (event)=>{
+                console.log(event);
+                if (event.code === 'ArrowUp'){
+                    this.human.position.y -= 40;
+                }
+                else if (event.code === 'ArrowDown'){
+                    this.human.position.y += 40;
+                }
+            
+                
+            }
+        });
+
     }
 
     moveObjects() {
@@ -218,6 +341,8 @@ class GameState {
         this.drawable.filter(e => e.callCBs !== undefined)
             .forEach(e => e.callCBs());
     }
+
+
 
 
 }
@@ -252,6 +377,12 @@ class Renderer {
          */
         this.context = canvas.getContext("2d");
         this.context.scale(this.x_scale, this.y_scale);
+
+        this.canvas.tabIndex = 1;
+
+        this.gamestate.eventSubscribers.forEach(sub =>{
+            this.canvas.addEventListener(sub.type, (event) => sub.fun(event));
+        });
     }
 
 
