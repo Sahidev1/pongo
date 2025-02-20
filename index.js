@@ -154,7 +154,7 @@ class GameState {
         this.v_height = 768;
         this.v_xstart = 32;
         this.v_ystart = 32;
-        this.v_radius = 16;
+        this.v_radius = 12;
 
         this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
         this.ballVel_mag = 0.5;
@@ -197,6 +197,8 @@ class GameState {
 
                 let velocity = Math.sqrt(ver_dist*ver_dist + hor_dist*hor_dist)/256;
 
+                let rangeOfPeace = 10;
+
 
                 if (ball_y > bot_b){
                     arg.ballWithinRange = false;
@@ -207,8 +209,10 @@ class GameState {
                 } else {
                     if (hor_dist >= 0 && hor_dist <= 3*arg.height)arg.ballWithinRange = true;
                     else arg.ballWithinRange = false;
-                    if (ball_y > bot_center && arg.ballWithinRange) arg.vertVelocity = velocity
-                    if (ball_y < bot_center && arg.ballWithinRange) arg.vertVelocity = -velocity;
+                    if ((ball_y < bot_center + rangeOfPeace && ball_y > bot_center - rangeOfPeace)){
+                        if (arg.ballWithinRange) arg.vertVelocity = 0;
+                        else arg.vertVelocity = velocity /16;
+                    } 
                 }
 
             });
@@ -468,7 +472,7 @@ class Renderer {
 const gamestate = new GameState(10);
 const renderer = new Renderer(gamestate);
 
-const FPS = 16;
+const FPS = 0;
 
 renderer.initRender();
 renderer.render();
