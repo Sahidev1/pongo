@@ -49,7 +49,7 @@ class Player {
      * @param {number} y 
      * @param {boolean} isBot
      */
-    constructor(isBot, color = "green", x = 0, y = 0, width, height, maxSpeed) {
+    constructor(isBot, dynData, color = "green", x = 0, y = 0, width, height, maxSpeed) {
         this.position = new Vector(x, y);
         this.score = 0;
         this.isBot = isBot;
@@ -63,6 +63,8 @@ class Player {
         this.velocityIncrementFactor = 8;
         this.maxSpeed = maxSpeed;
         this.ballWithinRange = false;
+        this.dynData = dynData;
+        this.moveRequested = 0;
     }
 
     /**
@@ -94,12 +96,13 @@ class Player {
 
 class Ball {
 
-    constructor(x, y, xv, yv, color, radius = 64) {
+    constructor(x, y, xv, yv, color, dynData, radius = 64) {
         this.position = new Vector(x, y);
         this.velocity = new Vector(xv, yv);
         this.radius = radius;
         this.color = color;
         this.callbacks = [];
+        this.dynData = dynData;
 
 
     }
@@ -134,8 +137,9 @@ class Ball {
      * 
      */
     move() {
-        this.position.x += this.velocity.x;
-        this.position.y += this.velocity.y;
+        let delta_t = this.dynData['delta_t'];
+        this.position.x += this.velocity.x * delta_t;
+        this.position.y += this.velocity.y * delta_t;
     }
 }
 
@@ -147,22 +151,29 @@ class GameState {
      */
     constructor(winscore) {
         this.v_width = 1024;
-        this.v_height = 1024;
+        this.v_height = 768;
         this.v_xstart = 32;
         this.v_ystart = 32;
         this.v_radius = 16;
-        this.y_vect = Math.floor(Math.random() * 4);
-        this.x_vect = this.y_vect + 1 + Math.floor(Math.random() * 4);
+        this.y_vect = Math.random()*0.5;
+        this.x_vect = this.y_vect + Math.random()*0.5;
+
+        this.dynData = {
+            'delta_t':0
+        }
 
         this.eventSubscribers = [];
 
         let pheight = 80;
         let pwidth = 20;
-        this.human = new Player(false, "white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
-        this.bot = new Player(true, "white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, 40);
+        this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
+        this.human.vertVelocity = 2;
+
+
+        this.bot = new Player(true, this.dynData,"white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, 1);
 
         this.winscore = winscore;
-        this.ball = new Ball(Math.floor(this.v_width / 2), Math.floor(this.v_height / 2), this.x_vect, this.y_vect, "white", this.v_radius);
+        this.ball = new Ball(Math.floor(this.v_width / 2), Math.floor(this.v_height / 2), this.x_vect, this.y_vect, "white", this.dynData ,this.v_radius);
 
 
         this.bot.addCallback(
@@ -171,50 +182,30 @@ class GameState {
              * @param {Player} arg 
              */
             (arg) => {
-                /*const ball = this.ball;
-                let bot_ycenter = this.bot.position.x - this.bot.height >> 1;
-
-                let d_x = arg.position.x - ball.position.x;
-                let t_reach = d_x / ball.velocity.x;
-
-                function distTraveled(a, t) {
-                    return (a * t * t) >> 1;
-                }
-
-                let needTravel = ball.velocity.y * t_reach;
-
-                let projTravel = distTraveled(arg.acceleration, t_reach);
-
-                if (projTravel < needTravel) arg.acceleration++;
-                else arg.acceleration--;
-                */
-1
-
                 let bot_b = arg.position.y + arg.height;
                 let bot_t = arg.position.y;
                 let ball_y = this.ball.position.y;
                 let bot_center = bot_t + arg.height/2;
                 let hor_dist = arg.position.x - (this.ball.position.x + this.ball.radius);
+                let ver_dist = arg.position.y - bot_center;
 
-                //console.log(bot_t);
-                //console.log(bot_b);
-                //console.log(ball_y);
-            
+                let hor_ver_ratio = ver_dist / hor_dist;
+
+                let velocity = Math.sqrt(ver_dist*ver_dist + hor_dist*hor_dist)/256;
+
 
                 if (ball_y > bot_b){
                     arg.ballWithinRange = false;
-                    arg.acceleration = 1;
+                    arg.vertVelocity = velocity;
                 } else if (ball_y < bot_t){
                     arg.ballWithinRange = false;
-                    arg.acceleration = -1;
+                    arg.vertVelocity = -velocity;
                 } else {
                     if (hor_dist >= 0 && hor_dist <= 3*arg.height)arg.ballWithinRange = true;
                     else arg.ballWithinRange = false;
-                    if (ball_y > bot_center) arg.acceleration = 1;
-                    if (ball_y < bot_center) arg.acceleration = -1;
+                    if (ball_y > bot_center && arg.ballWithinRange) arg.vertVelocity = velocity
+                    if (ball_y < bot_center && arg.ballWithinRange) arg.vertVelocity = -velocity;
                 }
-                //console.log(arg.acceleration);
-                //console.log(arg.vertVelocity)
 
             });
 
@@ -224,22 +215,21 @@ class GameState {
              * @param {Player} arg 
              */
             (arg) => {
-                //console.log(arg.acceleration);
-                //console.log(arg.position);
-
                 const collisionCheck = () => {
                     if (arg.position.y <= 0 || arg.position.y + arg.height >= this.v_height) return true;
                     return false;
                 }
 
                 arg.vertVelocity = arg.ballWithinRange?(arg.vertVelocity + arg.acceleration) % 5:(arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
+                
+                let delta_t = arg.dynData['delta_t'];
 
                 if(!collisionCheck()){
                     //console.log("collider");
-                    arg.position.y += arg.vertVelocity;
+                    arg.position.y += arg.vertVelocity * delta_t;
                 } else {
                     if((arg.vertVelocity > 0 && arg.position.y <= 0) || (arg.vertVelocity < 0 && arg.position.y + arg.height >= this.v_height)){
-                        arg.position.y += arg.vertVelocity;
+                        arg.position.y += arg.vertVelocity * delta_t;
                     }
                 }
             }
@@ -297,8 +287,7 @@ class GameState {
                     case collState.PLAYER_RIGHT:
                             arg.velocity.x = -arg.velocity.x;
                             arg.position.x = bot.position.x - (arg.radius + 1);
-                            if(bot.vertVelocity > 2) arg.velocity.y--;
-                            if(bot.vertVelocity < 2) arg.velocity.y++;
+                            
                         break;
                     case collState.PLAYER_LEFT:
                             arg.velocity.x = -arg.velocity.x;
@@ -313,18 +302,44 @@ class GameState {
             }
         )
 
-   
+        const pendingMove={
+            'NONE':0,
+            'UP':1,
+            'DOWN':2
+        }
+
+
+        this.human.addCallback(
+            /**
+             * 
+             * @param {Player} arg 
+             */
+            (arg)=>{
+                if (arg.moveRequested === pendingMove.NONE) return;
+                let delta_t = arg.dynData['delta_t'];
+                if (arg.moveRequested === pendingMove.UP) arg.position.y -= arg.vertVelocity*delta_t;
+                else if (arg.moveRequested === pendingMove.DOWN) arg.position.y += arg.vertVelocity*delta_t;
+                arg.moveRequested = pendingMove.NONE;
+                
+            }
+        );
+        
 
         this.drawable = [this.ball, this.human, this.bot];
         this.movable = [this.ball];
+
+
         this.eventSubscribers.push({
             type:"keydown", "fun": (event)=>{
-                console.log(event);
+                //console.log(event);
+
+                if (this.human.moveRequested !== pendingMove.NONE) return;
+
                 if (event.code === 'ArrowUp'){
-                    this.human.position.y -= 40;
+                    this.human.moveRequested = pendingMove.UP;
                 }
                 else if (event.code === 'ArrowDown'){
-                    this.human.position.y += 40;
+                    this.human.moveRequested = pendingMove.DOWN;
                 }
             
                 
@@ -340,6 +355,10 @@ class GameState {
     callCBs() {
         this.drawable.filter(e => e.callCBs !== undefined)
             .forEach(e => e.callCBs());
+    }
+
+    setDelta(delta){
+        this.dynData.delta_t = delta;
     }
 
 
@@ -415,16 +434,24 @@ class Renderer {
 const gamestate = new GameState(10);
 const renderer = new Renderer(gamestate);
 
+const FPS = 16;
 
 renderer.initRender();
 renderer.render();
 
+let last_t = Date.now();
+let curr_t = 0;
+let delta_t = 0;
 
 const main0 = setInterval(() => {
+    curr_t = Date.now();
+    gamestate.setDelta(curr_t - last_t);
+    //console.log($1)
     gamestate.callCBs();
     gamestate.moveObjects();
     renderer.render();
-}, 16);
+    last_t = curr_t;
+}, FPS);
 
 
 
