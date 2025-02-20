@@ -155,8 +155,12 @@ class GameState {
         this.v_xstart = 32;
         this.v_ystart = 32;
         this.v_radius = 16;
-        this.y_vect = Math.random()*0.5;
-        this.x_vect = this.y_vect + Math.random()*0.5;
+
+        this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
+        this.ballVel_mag = 0.5;
+
+        this.y_vect = this.ballVel_mag * Math.sin(this.ballVel_angle);
+        this.x_vect = this.ballVel_mag * Math.cos(this.ballVel_angle);
 
         this.dynData = {
             'delta_t':0
@@ -167,7 +171,7 @@ class GameState {
         let pheight = 80;
         let pwidth = 20;
         this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
-        this.human.vertVelocity = 2;
+        this.human.vertVelocity = 0.5;
 
 
         this.bot = new Player(true, this.dynData,"white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, 1);
@@ -315,11 +319,39 @@ class GameState {
              * @param {Player} arg 
              */
             (arg)=>{
-                if (arg.moveRequested === pendingMove.NONE) return;
+
+                const collState = {
+                    "NONE":0,
+                    "TOP":1,
+                    "BOTTOM":2
+                }
+
+                const collisionCheck = ()=>{
+                    if(arg.position.y <= 0) return collState.TOP;
+                    if(arg.position.y + arg.height >= this.v_height) return collState.BOTTOM;
+                    
+                    return collState.NONE;
+                }
+
+
+               
+
+                let coll=collisionCheck()
+                if (coll !== collState.NONE){
+                    if (coll === collState.TOP) arg.position.y = 0;
+                    if (coll === collState.BOTTOM) arg.position.y = this.v_height - arg.height;
+                    if((coll === collState.TOP && arg.moveRequested === pendingMove.UP) || (coll === collState.BOTTOM && arg.moveRequested === pendingMove.DOWN)){
+                        arg.moveRequested = pendingMove.NONE;
+                        return;
+                    }
+                }
+
+                if (arg.moveRequested === pendingMove.NONE ) return;
+
                 let delta_t = arg.dynData['delta_t'];
+                console.log(delta_t)
                 if (arg.moveRequested === pendingMove.UP) arg.position.y -= arg.vertVelocity*delta_t;
                 else if (arg.moveRequested === pendingMove.DOWN) arg.position.y += arg.vertVelocity*delta_t;
-                arg.moveRequested = pendingMove.NONE;
                 
             }
         );
@@ -332,9 +364,6 @@ class GameState {
         this.eventSubscribers.push({
             type:"keydown", "fun": (event)=>{
                 //console.log(event);
-
-                if (this.human.moveRequested !== pendingMove.NONE) return;
-
                 if (event.code === 'ArrowUp'){
                     this.human.moveRequested = pendingMove.UP;
                 }
@@ -343,6 +372,11 @@ class GameState {
                 }
             
                 
+            }
+        },
+        {
+            type:"keyup", "fun": (event)=> {
+                this.human.moveRequested = pendingMove.NONE;
             }
         });
 
