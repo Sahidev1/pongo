@@ -150,10 +150,15 @@ class GameState {
      * @param {Settings} settings 
      */
     constructor(winscore) {
+        let pheight = 80;
+        let pwidth = 20;
+        this.pheight = pheight;
+        this.width = pwidth;
+
         this.v_width = 1024;
         this.v_height = 768;
         this.v_xstart = 32;
-        this.v_ystart = 32;
+        this.v_ystart = this.v_height / 2 - pheight/2;
         this.v_radius = 12;
 
         this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
@@ -168,8 +173,7 @@ class GameState {
 
         this.eventSubscribers = [];
 
-        let pheight = 80;
-        let pwidth = 20;
+
         this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
         this.human.vertVelocity = 0.5;
 
@@ -277,12 +281,14 @@ class GameState {
                 const collCheck = collisionCheck();
                 switch (collCheck) {
                     case collState.HORIZONTAL_LEFT:
-                            arg.velocity.x = -arg.velocity.x;
-                            arg.position.x = arg.radius + 1;
+                            this.resetGame();
+                            //arg.velocity.x = -arg.velocity.x;
+                            //arg.position.x = arg.radius + 1;
                         break;
                     case collState.HORIZONTAL_RIGHT:
-                            arg.velocity.x = -arg.velocity.x;
-                            arg.position.x = this.v_width - (arg.radius + 1);
+                            this.resetGame();
+                            //arg.velocity.x = -arg.velocity.x;
+                            //arg.position.x = this.v_width - (arg.radius + 1);
                         break;
                     case collState.VERTICAL_BOTTOM:
                             arg.velocity.y = -arg.velocity.y;
@@ -386,6 +392,23 @@ class GameState {
 
     }
 
+    resetGame(){
+        this.resetBall();
+    }
+
+    resetBall(){
+        this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
+        this.ballVel_mag = 0.5;
+
+        this.y_vect = this.ballVel_mag * Math.sin(this.ballVel_angle);
+        this.x_vect = this.ballVel_mag * Math.cos(this.ballVel_angle);
+
+        this.ball.position.x = Math.floor(this.v_width / 2);
+        this.ball.position.y = Math.floor(this.v_height / 2);
+        this.ball.velocity.x = this.x_vect;
+        this.ball.velocity.y = this.y_vect;
+    }
+
     moveObjects() {
         this.movable.forEach(m => m.move());
     }
@@ -398,9 +421,6 @@ class GameState {
     setDelta(delta){
         this.dynData.delta_t = delta;
     }
-
-
-
 
 }
 
