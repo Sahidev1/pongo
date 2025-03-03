@@ -7,6 +7,9 @@ const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
 const DEFAULT_SETTING_CANVAS_ID = "canvas";
 const DEFAULT_SETTING_BACKGROUND_COLOR = "black";
 
+
+
+
 /**
  * Settings class
  */
@@ -36,6 +39,31 @@ class Vector {
     constructor(x, y) {
         this.x = x;
         this.y = y;
+    }
+}
+
+class VelocityVector extends Vector {
+
+    constructor(x, y) {
+        super(x, y);
+        this.velocityAngle = Math.atan(this.y / this.x);
+        this.speed = Math.sqrt(this.x**2 + this.y**2);
+
+        console.log([x, y]);
+        console.log(this.velocityAngle);
+        console.log(this.speed);
+    }
+
+    increaseSpeed(factor){
+        this.speed *= factor;
+        let x_vect = this.x * factor;
+        let y_vect = this.y * factor;
+        this.x = x_vect;
+        this.y = y_vect;
+
+        console.log([this.x, this.y]);
+        console.log(this.velocityAngle);
+        console.log(this.speed);
     }
 }
 
@@ -98,7 +126,7 @@ class Ball {
 
     constructor(x, y, xv, yv, color, dynData, radius = 64) {
         this.position = new Vector(x, y);
-        this.velocity = new Vector(xv, yv);
+        this.velocity = new VelocityVector(xv, yv);
         this.radius = radius;
         this.color = color;
         this.callbacks = [];
@@ -169,9 +197,13 @@ class GameState {
 
         this.dynData = {
             'delta_t':0
-        }
+        } 
+
+        
 
         this.eventSubscribers = [];
+
+        this.ballSpeedFactor = 1.03;
 
 
         this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
@@ -301,11 +333,15 @@ class GameState {
                     case collState.PLAYER_RIGHT:
                             arg.velocity.x = -arg.velocity.x;
                             arg.position.x = bot.position.x - (arg.radius + 1);
-                            
+                            arg.velocity.increaseSpeed(this.ballSpeedFactor);   
+
                         break;
                     case collState.PLAYER_LEFT:
                             arg.velocity.x = -arg.velocity.x;
                             arg.position.x = human.position.x + human.width + (arg.radius + 1); 
+                            arg.velocity.increaseSpeed(this.ballSpeedFactor);
+                            
+
                         break;
                     default:
                         break;
@@ -359,7 +395,7 @@ class GameState {
                 if (arg.moveRequested === pendingMove.NONE ) return;
 
                 let delta_t = arg.dynData['delta_t'];
-                console.log(delta_t)
+                //console.log(delta_t)
                 if (arg.moveRequested === pendingMove.UP) arg.position.y -= arg.vertVelocity*delta_t;
                 else if (arg.moveRequested === pendingMove.DOWN) arg.position.y += arg.vertVelocity*delta_t;
                 
@@ -373,6 +409,7 @@ class GameState {
 
         this.eventSubscribers.push({
             type:"keydown", "fun": (event)=>{
+                if (this.state === 'MENU') return;
                 //console.log(event);
                 if (event.code === 'ArrowUp'){
                     this.human.moveRequested = pendingMove.UP;
@@ -386,9 +423,13 @@ class GameState {
         },
         {
             type:"keyup", "fun": (event)=> {
+                if (this.state === 'MENU') return;
                 this.human.moveRequested = pendingMove.NONE;
             }
         });
+
+
+        this.state = 'MENU';
 
     }
 
@@ -439,6 +480,9 @@ class Renderer {
         this.gamestate = gamestate;
         this.x_scale = settings.win_width / this.gamestate.v_width;
         this.y_scale = settings.win_height / this.gamestate.v_width;
+
+
+        this.menuEvent = null;
     }
 
     initRender() {
@@ -480,8 +524,34 @@ class Renderer {
         this.context.fillRect(0, 0, this.gamestate.v_width, this.gamestate.v_height);
     }
 
+    renderMenu(){
+        this.fillCanvas(this.settings.background_color);
+        this.context.fillStyle = "white";
+        this.context.font = "bold 52px serif";
+        this.context.textAlign = "center";
+        this.context.fillText("Press Any key to start the game!",this.gamestate.v_width / 2, this.gamestate.v_height / 2 );
+    }
 
     render() {
+        
+        if(this.gamestate.state === 'MENU'){
+            if (this.menuEvent === null){
+                const callback = () => this.gamestate.state = 'PLAY';
+                function eventHandler(){
+                    callback();
+                }
+                this.canvas.addEventListener('keydown', eventHandler);
+                this.menuEvent = ()=>this.canvas.removeEventListener('keydown', eventHandler);
+            }
+            this.renderMenu();
+            return;
+        }
+        
+        if(this.menuEvent !== null) {
+            this.menuEvent();
+            this.menuEvent = null;
+        }
+
         this.fillCanvas(this.settings.background_color);
         //console.log(this.gamestate.drawable);
         this.gamestate.drawable.forEach(e => e.draw(this.context));
@@ -492,7 +562,7 @@ class Renderer {
 const gamestate = new GameState(10);
 const renderer = new Renderer(gamestate);
 
-const FPS = 0;
+const FRAME_TIME_MS = 0;
 
 renderer.initRender();
 renderer.render();
@@ -501,15 +571,22 @@ let last_t = Date.now();
 let curr_t = 0;
 let delta_t = 0;
 
+let pause = false;
+
+
 const main0 = setInterval(() => {
+    if (pause) return;
     curr_t = Date.now();
     gamestate.setDelta(curr_t - last_t);
     //console.log($1)
-    gamestate.callCBs();
-    gamestate.moveObjects();
+    if (gamestate.state !== 'MENU'){
+        gamestate.callCBs();
+        gamestate.moveObjects();
+    }
     renderer.render();
     last_t = curr_t;
-}, FPS);
+    console.log(gamestate.state)
+}, FRAME_TIME_MS);
 
 
 
