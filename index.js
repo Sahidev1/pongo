@@ -7,6 +7,56 @@ const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
 const DEFAULT_SETTING_CANVAS_ID = "canvas";
 const DEFAULT_SETTING_BACKGROUND_COLOR = "black";
 
+const VIRTUAL_WIDTH_PX = 1024;
+const VIRTUAL_HEIGHT_PX = 768;
+const VIRTUAL_RADIUS_PX = 12;
+const VIRTUAL_X_START_PX = 32;
+
+const PLAYER_WIDTH_PX = 20;
+const PLAYER_HEIGTH_PX = 100;
+const HUMAN_MAXSPEED = 20;
+const BOT_MAXSPEED = 1;
+
+const HUMAN_VERTICAL_VELOCITY = 0.5;
+
+const INIT_PLAYER_VERTITCAL_VELOCITY = 0;
+const INIT_PLAYER_ACCELERATION = 0;
+const INIT_PLAYER_VELOCITY_INCREMENT_FACTOR = 8;
+
+const BALL_DEFAULT_RADIUS_PX = 64;
+
+const BALL_INIT_SPEED = 0.5;
+const BALL_SPEED_FACTOR = 1.03;
+
+const WINSCORE = 10;
+
+
+const BallCollisionState = {
+    NONE:0,
+    VERTICAL_TOP:1,
+    VERTICAL_BOTTOM:2,
+    HORIZONTAL_LEFT:3,
+    HORIZONTAL_RIGHT:4,
+    PLAYER_RIGHT:5,
+    PLAYER_LEFT:6
+}
+
+const HumanCollisionState = {
+    "NONE":0,
+    "TOP":1,
+    "BOTTOM":2
+}
+
+const PendingMove={
+    'NONE':0,
+    'UP':1,
+    'DOWN':2
+}
+
+const GameStates={
+    MENU:'MENU',
+    PLAY:'PLAY'
+}
 
 
 
@@ -85,10 +135,10 @@ class Player {
         this.width = width;
         this.height = height;
         this.callbacks = [];
-        this.vertVelocity = 0;
-        this.acceleration = 0;
+        this.vertVelocity = INIT_PLAYER_VERTITCAL_VELOCITY;
+        this.acceleration = INIT_PLAYER_ACCELERATION;
         this.velocityIncrements = 0;
-        this.velocityIncrementFactor = 8;
+        this.velocityIncrementFactor = INIT_PLAYER_VELOCITY_INCREMENT_FACTOR;
         this.maxSpeed = maxSpeed;
         this.ballWithinRange = false;
         this.dynData = dynData;
@@ -102,7 +152,7 @@ class Player {
     draw(context) {
         context.fillStyle = this.color;
         //console.log(this.color);
-        context.fillRect(this.position.x, this.position.y, 20, 80);
+        context.fillRect(this.position.x, this.position.y, PLAYER_WIDTH_PX, PLAYER_HEIGTH_PX);
     }
 
 
@@ -124,15 +174,13 @@ class Player {
 
 class Ball {
 
-    constructor(x, y, xv, yv, color, dynData, radius = 64) {
+    constructor(x, y, xv, yv, color, dynData, radius = BALL_DEFAULT_RADIUS_PX) {
         this.position = new Vector(x, y);
         this.velocity = new VelocityVector(xv, yv);
         this.radius = radius;
         this.color = color;
         this.callbacks = [];
         this.dynData = dynData;
-
-
     }
 
     /**
@@ -178,19 +226,19 @@ class GameState {
      * @param {Settings} settings 
      */
     constructor(winscore) {
-        let pheight = 80;
-        let pwidth = 20;
+        let pheight = PLAYER_HEIGTH_PX;
+        let pwidth = PLAYER_WIDTH_PX;
         this.pheight = pheight;
         this.width = pwidth;
 
-        this.v_width = 1024;
-        this.v_height = 768;
-        this.v_xstart = 32;
+        this.v_width = VIRTUAL_WIDTH_PX;
+        this.v_height = VIRTUAL_HEIGHT_PX;
+        this.v_xstart = VIRTUAL_X_START_PX;
         this.v_ystart = this.v_height / 2 - pheight/2;
-        this.v_radius = 12;
+        this.v_radius = VIRTUAL_RADIUS_PX;
 
-        this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
-        this.ballVel_mag = 0.5;
+        this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4); //angle is: -45 to 45 degrees
+        this.ballVel_mag = BALL_INIT_SPEED;
 
         this.y_vect = this.ballVel_mag * Math.sin(this.ballVel_angle);
         this.x_vect = this.ballVel_mag * Math.cos(this.ballVel_angle);
@@ -199,18 +247,23 @@ class GameState {
             'delta_t':0
         } 
 
-        
+        this.score = 0;
+
+        this.scoreboard = {
+            HUMAN:0,
+            BOT:0
+        }
 
         this.eventSubscribers = [];
 
-        this.ballSpeedFactor = 1.03;
+        this.ballSpeedFactor = BALL_SPEED_FACTOR;
 
 
-        this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, 20);
-        this.human.vertVelocity = 0.5;
+        this.human = new Player(false, this.dynData,"white", this.v_xstart, this.v_ystart, pwidth, pheight, HUMAN_MAXSPEED);
+        this.human.vertVelocity = HUMAN_VERTICAL_VELOCITY;
 
 
-        this.bot = new Player(true, this.dynData,"white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, 1);
+        this.bot = new Player(true, this.dynData,"white", this.v_width - this.v_xstart - pwidth, this.v_ystart, pwidth, pheight, BOT_MAXSPEED);
 
         this.winscore = winscore;
         this.ball = new Ball(Math.floor(this.v_width / 2), Math.floor(this.v_height / 2), this.x_vect, this.y_vect, "white", this.dynData ,this.v_radius);
@@ -284,80 +337,58 @@ class GameState {
              * @param {Ball} arg
              */
             (arg) =>{
-                const collState = {
-                    NONE:0,
-                    VERTICAL_TOP:1,
-                    VERTICAL_BOTTOM:2,
-                    HORIZONTAL_LEFT:3,
-                    HORIZONTAL_RIGHT:4,
-                    PLAYER_RIGHT:5,
-                    PLAYER_LEFT:6
-                }
-
-
                 //console.log("ball collision check;");
                 const bot = this.bot;
                 const human = this.human;
                 const collisionCheck = ()=>{
-                    if(arg.position.x <= arg.radius) return collState.HORIZONTAL_LEFT;
-                    if(arg.position.x >= this.v_width - arg.radius) return collState.HORIZONTAL_RIGHT;
-                    if(arg.position.y <= arg.radius) return collState.VERTICAL_TOP;
-                    if(arg.position.y >= this.v_height - arg.radius) return collState.VERTICAL_BOTTOM;
-                    if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return collState.PLAYER_RIGHT;
-                    if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return collState.PLAYER_LEFT;
+                    if(arg.position.x <= arg.radius) return BallCollisionState.HORIZONTAL_LEFT;
+                    if(arg.position.x >= this.v_width - arg.radius) return BallCollisionState.HORIZONTAL_RIGHT;
+                    if(arg.position.y <= arg.radius) return BallCollisionState.VERTICAL_TOP;
+                    if(arg.position.y >= this.v_height - arg.radius) return BallCollisionState.VERTICAL_BOTTOM;
+                    if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return BallCollisionState.PLAYER_RIGHT;
+                    if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return BallCollisionState.PLAYER_LEFT;
 
 
-                    return collState.NONE;                    
+                    return BallCollisionState.NONE;                    
                 }
 
                 const collCheck = collisionCheck();
                 switch (collCheck) {
-                    case collState.HORIZONTAL_LEFT:
+                    case BallCollisionState.HORIZONTAL_LEFT:
+                            this.scoreboard.BOT += 1;
                             this.resetGame();
                             //arg.velocity.x = -arg.velocity.x;
                             //arg.position.x = arg.radius + 1;
                         break;
-                    case collState.HORIZONTAL_RIGHT:
+                    case BallCollisionState.HORIZONTAL_RIGHT:
+                            this.scoreboard.HUMAN += 1;
                             this.resetGame();
                             //arg.velocity.x = -arg.velocity.x;
                             //arg.position.x = this.v_width - (arg.radius + 1);
                         break;
-                    case collState.VERTICAL_BOTTOM:
+                    case BallCollisionState.VERTICAL_BOTTOM:
                             arg.velocity.y = -arg.velocity.y;
                             arg.position.y = this.v_height - (arg.radius + 1);
                         break;
-                    case collState.VERTICAL_TOP:
+                    case BallCollisionState.VERTICAL_TOP:
                             arg.velocity.y = -arg.velocity.y;
                             arg.position.y = arg.radius + 1;
                         break;
-                    case collState.PLAYER_RIGHT:
+                    case BallCollisionState.PLAYER_RIGHT:
                             arg.velocity.x = -arg.velocity.x;
                             arg.position.x = bot.position.x - (arg.radius + 1);
                             arg.velocity.increaseSpeed(this.ballSpeedFactor);   
-
                         break;
-                    case collState.PLAYER_LEFT:
+                    case BallCollisionState.PLAYER_LEFT:
                             arg.velocity.x = -arg.velocity.x;
                             arg.position.x = human.position.x + human.width + (arg.radius + 1); 
                             arg.velocity.increaseSpeed(this.ballSpeedFactor);
-                            
-
                         break;
                     default:
                         break;
-                }
-
-                //console.log(arg.velocity);
-               
+                }               
             }
         )
-
-        const pendingMove={
-            'NONE':0,
-            'UP':1,
-            'DOWN':2
-        }
-
 
         this.human.addCallback(
             /**
@@ -365,39 +396,28 @@ class GameState {
              * @param {Player} arg 
              */
             (arg)=>{
-
-                const collState = {
-                    "NONE":0,
-                    "TOP":1,
-                    "BOTTOM":2
-                }
-
                 const collisionCheck = ()=>{
-                    if(arg.position.y <= 0) return collState.TOP;
-                    if(arg.position.y + arg.height >= this.v_height) return collState.BOTTOM;
-                    
-                    return collState.NONE;
+                    if(arg.position.y <= 0) return HumanCollisionState.TOP;
+                    if(arg.position.y + arg.height >= this.v_height) return HumanCollisionState.BOTTOM;
+                    return HumanCollisionState.NONE;
                 }
-
-
-               
 
                 let coll=collisionCheck()
-                if (coll !== collState.NONE){
-                    if (coll === collState.TOP) arg.position.y = 0;
-                    if (coll === collState.BOTTOM) arg.position.y = this.v_height - arg.height;
-                    if((coll === collState.TOP && arg.moveRequested === pendingMove.UP) || (coll === collState.BOTTOM && arg.moveRequested === pendingMove.DOWN)){
-                        arg.moveRequested = pendingMove.NONE;
+                if (coll !== HumanCollisionState.NONE){
+                    if (coll === HumanCollisionState.TOP) arg.position.y = 0;
+                    if (coll === HumanCollisionState.BOTTOM) arg.position.y = this.v_height - arg.height;
+                    if((coll === HumanCollisionState.TOP && arg.moveRequested === PendingMove.UP) || (coll === HumanCollisionState.BOTTOM && arg.moveRequested === PendingMove.DOWN)){
+                        arg.moveRequested = PendingMove.NONE;
                         return;
                     }
                 }
 
-                if (arg.moveRequested === pendingMove.NONE ) return;
+                if (arg.moveRequested === PendingMove.NONE ) return;
 
                 let delta_t = arg.dynData['delta_t'];
                 //console.log(delta_t)
-                if (arg.moveRequested === pendingMove.UP) arg.position.y -= arg.vertVelocity*delta_t;
-                else if (arg.moveRequested === pendingMove.DOWN) arg.position.y += arg.vertVelocity*delta_t;
+                if (arg.moveRequested === PendingMove.UP) arg.position.y -= arg.vertVelocity*delta_t;
+                else if (arg.moveRequested === PendingMove.DOWN) arg.position.y += arg.vertVelocity*delta_t;
                 
             }
         );
@@ -406,30 +426,27 @@ class GameState {
         this.drawable = [this.ball, this.human, this.bot];
         this.movable = [this.ball];
 
-
         this.eventSubscribers.push({
             type:"keydown", "fun": (event)=>{
-                if (this.state === 'MENU') return;
+                if (this.state === GameStates.MENU) return;
                 //console.log(event);
                 if (event.code === 'ArrowUp'){
-                    this.human.moveRequested = pendingMove.UP;
+                    this.human.moveRequested = PendingMove.UP;
                 }
                 else if (event.code === 'ArrowDown'){
-                    this.human.moveRequested = pendingMove.DOWN;
+                    this.human.moveRequested = PendingMove.DOWN;
                 }
-            
-                
             }
         },
         {
             type:"keyup", "fun": (event)=> {
-                if (this.state === 'MENU') return;
-                this.human.moveRequested = pendingMove.NONE;
+                if (this.state === GameStates.MENU) return;
+                this.human.moveRequested = PendingMove.NONE;
             }
         });
 
 
-        this.state = 'MENU';
+        this.state = GameStates.MENU;
 
     }
 
@@ -439,7 +456,7 @@ class GameState {
 
     resetBall(){
         this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
-        this.ballVel_mag = 0.5;
+        this.ballVel_mag = BALL_INIT_SPEED;
 
         this.y_vect = this.ballVel_mag * Math.sin(this.ballVel_angle);
         this.x_vect = this.ballVel_mag * Math.cos(this.ballVel_angle);
@@ -499,7 +516,7 @@ class Renderer {
         this.context = canvas.getContext("2d");
         this.context.scale(this.x_scale, this.y_scale);
 
-        this.canvas.tabIndex = 1;
+        this.canvas.tabIndex = 1; // kind of a hack to be able to attach eventlisteners to canvas element
 
         this.gamestate.eventSubscribers.forEach(sub =>{
             this.canvas.addEventListener(sub.type, (event) => sub.fun(event));
@@ -532,11 +549,21 @@ class Renderer {
         this.context.fillText("Press Any key to start the game!",this.gamestate.v_width / 2, this.gamestate.v_height / 2 );
     }
 
+    renderScore(){
+        this.context.fillStyle = "white";
+        this.context.font = "bold 52px serif";
+        this.context.textAlign = "center";
+        this.context.textBaseline = 'top';
+        let scoreboard = this.gamestate.scoreboard;
+        this.context.fillText(`${scoreboard.HUMAN} : ${scoreboard.BOT}`, this.gamestate.v_width / 2, 20);
+        this.context.textBaseline = 'alphabetic';
+    }
+
     render() {
         
-        if(this.gamestate.state === 'MENU'){
+        if(this.gamestate.state === GameStates.MENU){
             if (this.menuEvent === null){
-                const callback = () => this.gamestate.state = 'PLAY';
+                const callback = () => this.gamestate.state = GameStates.PLAY;
                 function eventHandler(){
                     callback();
                 }
@@ -554,12 +581,13 @@ class Renderer {
 
         this.fillCanvas(this.settings.background_color);
         //console.log(this.gamestate.drawable);
+        this.renderScore();
         this.gamestate.drawable.forEach(e => e.draw(this.context));
     }
 }
 
 
-const gamestate = new GameState(10);
+const gamestate = new GameState(WINSCORE);
 const renderer = new Renderer(gamestate);
 
 const FRAME_TIME_MS = 0;
@@ -579,7 +607,7 @@ const main0 = setInterval(() => {
     curr_t = Date.now();
     gamestate.setDelta(curr_t - last_t);
     //console.log($1)
-    if (gamestate.state !== 'MENU'){
+    if (gamestate.state !== GameStates.MENU){
         gamestate.callCBs();
         gamestate.moveObjects();
     }
