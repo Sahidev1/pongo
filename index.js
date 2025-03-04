@@ -1,6 +1,6 @@
 
-const DEFAULT_SETTING_WIDTH = 512;
-const DEFAULT_SETTING_HEIGHT = 512;
+const DEFAULT_SETTING_WIDTH = 768;
+const DEFAULT_SETTING_HEIGHT = 768;
 const DEFAULT_SETTING_X_START = 32;
 const DEFAULT_SETTING_Y_START = 32;
 const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
@@ -169,11 +169,7 @@ class Player {
     }
 }
 
-
-
-
 class Ball {
-
     constructor(x, y, xv, yv, color, dynData, radius = BALL_DEFAULT_RADIUS_PX) {
         this.position = new Vector(x, y);
         this.velocity = new VelocityVector(xv, yv);
@@ -181,6 +177,7 @@ class Ball {
         this.color = color;
         this.callbacks = [];
         this.dynData = dynData;
+        this.canMove = true;
     }
 
     /**
@@ -208,11 +205,25 @@ class Ball {
         this.callbacks.forEach(ev => ev(this));
     }
 
+    pauseMovement(pauseMS) {
+        this.canMove = false;
+        const cb = ()=>{
+            console.log("ping")
+            this.canMove = true;
+        }
+
+        setTimeout(cb,  pauseMS);
+    }
+
 
     /**
      * 
      */
     move() {
+        console.log(this.canMove);
+        if (!this.canMove){
+            return;
+        }
         let delta_t = this.dynData['delta_t'];
         this.position.x += this.velocity.x * delta_t;
         this.position.y += this.velocity.y * delta_t;
@@ -220,7 +231,6 @@ class Ball {
 }
 
 class GameState {
-
     /**
      * 
      * @param {Settings} settings 
@@ -450,11 +460,18 @@ class GameState {
 
     }
 
-    resetGame(){
-        this.resetBall();
+    setGameState(newState){
+        if(this.state === GameStates.MENU && newState === GameStates.PLAY){
+            this.ball.pauseMovement(1000);
+        }
+        this.state = newState;
     }
 
-    resetBall(){
+    resetGame(){
+        this.initBall();
+    }
+
+    initBall(){
         this.ballVel_angle = (0.5 - Math.random()) * (Math.PI / 4);
         this.ballVel_mag = BALL_INIT_SPEED;
 
@@ -465,6 +482,8 @@ class GameState {
         this.ball.position.y = Math.floor(this.v_height / 2);
         this.ball.velocity.x = this.x_vect;
         this.ball.velocity.y = this.y_vect;
+
+        this.ball.pauseMovement(700);
     }
 
     moveObjects() {
@@ -563,7 +582,7 @@ class Renderer {
         
         if(this.gamestate.state === GameStates.MENU){
             if (this.menuEvent === null){
-                const callback = () => this.gamestate.state = GameStates.PLAY;
+                const callback = () => this.gamestate.setGameState(GameStates.PLAY);
                 function eventHandler(){
                     callback();
                 }
