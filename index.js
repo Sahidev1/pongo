@@ -281,7 +281,7 @@ class GameState {
 
         this.bot.addCallback(
             /**
-             * 
+             * This function adjusts the bot players verical velocity
              * @param {Player} arg 
              */
             (arg) => {
@@ -318,7 +318,7 @@ class GameState {
 
         this.bot.addCallback(
             /**
-             * 
+             * This function moves the bot player
              * @param {Player} arg 
              */
             (arg) => {
@@ -365,14 +365,14 @@ class GameState {
                 const collCheck = collisionCheck();
                 switch (collCheck) {
                     case BallCollisionState.HORIZONTAL_LEFT:
-                            this.scoreboard.BOT += 1;
-                            this.resetGame();
+                            this.updateScoreboard(this.scoreboard.HUMAN, this.scoreboard.BOT + 1);
+                            this.initBall();
                             //arg.velocity.x = -arg.velocity.x;
                             //arg.position.x = arg.radius + 1;
                         break;
                     case BallCollisionState.HORIZONTAL_RIGHT:
-                            this.scoreboard.HUMAN += 1;
-                            this.resetGame();
+                    this.updateScoreboard(this.scoreboard.HUMAN + 1, this.scoreboard.BOT);
+                    this.initBall();
                             //arg.velocity.x = -arg.velocity.x;
                             //arg.position.x = this.v_width - (arg.radius + 1);
                         break;
@@ -460,6 +460,16 @@ class GameState {
 
     }
 
+    updateScoreboard(humanscore, botscore){
+        let score = Math.max(humanscore, botscore)
+        if (score >= this.winscore){ 
+            this.resetGame();
+            return;
+        }
+        this.scoreboard.BOT = botscore;
+        this.scoreboard.HUMAN = humanscore;
+    }
+
     setGameState(newState){
         if(this.state === GameStates.MENU && newState === GameStates.PLAY){
             this.ball.pauseMovement(1000);
@@ -469,6 +479,9 @@ class GameState {
 
     resetGame(){
         this.initBall();
+        this.score = 0;
+        this.scoreboard.BOT = 0; this.scoreboard.HUMAN = 0;
+        this.state = GameStates.MENU;
     }
 
     initBall(){
@@ -632,7 +645,7 @@ const main0 = setInterval(() => {
     }
     renderer.render();
     last_t = curr_t;
-    console.log(gamestate.state)
+    //console.log(gamestate.state)
 }, FRAME_TIME_MS);
 
 
