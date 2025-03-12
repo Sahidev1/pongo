@@ -15,7 +15,7 @@ const VIRTUAL_X_START_PX = 32;
 const PLAYER_WIDTH_PX = 20;
 const PLAYER_HEIGTH_PX = 100;
 const HUMAN_MAXSPEED = 20;
-const BOT_MAXSPEED = 0.5;
+const BOT_MAXSPEED = 1;
 
 const HUMAN_VERTICAL_VELOCITY = 0.5;
 
@@ -29,6 +29,8 @@ const BALL_INIT_SPEED = 0.5;
 const BALL_SPEED_FACTOR = 1.03;
 
 const WINSCORE = 10;
+
+const BOT_ERROR_SIZE = 0.6;
 
 
 const BallCollisionState = {
@@ -58,6 +60,48 @@ const GameStates={
     PLAY:'PLAY'
 }
 
+
+class ErrorEmulator {
+    /**
+     * 
+     * @param {number} errSize upper bound for size of error, must be between 0 and 1
+     * @param {boolean} negativeErr can errors be negative?
+     */
+    constructor(errSize, negativeErr=true){
+        this.errSize = errSize % 1;
+        this.negativeErr = negativeErr;
+    }
+
+    createErr(){
+        let rawErr = ((Math.random() - 0.5)*2) * this.errSize;
+        if (!this.negativeErr) rawErr = Math.abs(rawErr);
+        //console.log(rawErr);
+        return rawErr;
+    }
+
+    /**
+     * 
+     * @param {number} data 
+     */
+    emulateError(data){
+        let v = data + (data*this.createErr());
+        //console.log(`data: ${data}, v: ${v}`);
+        return v;
+    }
+
+    /**
+     * 
+     * @param {number[]} data array of numbers
+     */
+    emulateErrors(data){
+        return data.map(d => {
+            return d + (d*createErr());
+        });
+    }
+
+    
+
+}
 
 
 /**
@@ -99,9 +143,9 @@ class VelocityVector extends Vector {
         this.velocityAngle = Math.atan(this.y / this.x);
         this.speed = Math.sqrt(this.x**2 + this.y**2);
 
-        console.log([x, y]);
-        console.log(this.velocityAngle);
-        console.log(this.speed);
+        //console.log([x, y]);
+        //console.log(this.velocityAngle);
+        //console.log(this.speed);
     }
 
     increaseSpeed(factor){
@@ -111,9 +155,9 @@ class VelocityVector extends Vector {
         this.x = x_vect;
         this.y = y_vect;
 
-        console.log([this.x, this.y]);
-        console.log(this.velocityAngle);
-        console.log(this.speed);
+        //console.log([this.x, this.y]);
+        //console.log(this.velocityAngle);
+        //console.log(this.speed);
     }
 }
 
@@ -241,6 +285,8 @@ class GameState {
         this.pheight = pheight;
         this.width = pwidth;
 
+        this.botErrorEmulator = new ErrorEmulator(BOT_ERROR_SIZE);
+
         this.v_width = VIRTUAL_WIDTH_PX;
         this.v_height = VIRTUAL_HEIGHT_PX;
         this.v_xstart = VIRTUAL_X_START_PX;
@@ -317,6 +363,9 @@ class GameState {
                     } 
                 }
 
+                // add error to velocity
+                
+
 
             });
 
@@ -331,15 +380,15 @@ class GameState {
                     return false;
                 }
 
-                console.log(`before: ${arg.vertVelocity}`);
-                arg.vertVelocity = arg.ballWithinRange?(arg.vertVelocity + arg.acceleration) % 5:(arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
-                console.log(`after: ${arg.vertVelocity}`);
+                //console.log(`before: ${arg.vertVelocity}`);
+                arg.vertVelocity = arg.ballWithinRange?(arg.vertVelocity + arg.acceleration) % (2*arg.maxSpeed):(arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
+                //console.log(`after: ${arg.vertVelocity}`);
 
                 let delta_t = arg.dynData['delta_t'];
 
                 if(!collisionCheck()){
                     //console.log("collider");
-                    arg.position.y += arg.vertVelocity * delta_t;
+                    arg.position.y += this.botErrorEmulator.emulateError(arg.vertVelocity)*this.botErrorEmulator.emulateError(delta_t);
                 } else {
                     if((arg.vertVelocity > 0 && arg.position.y <= 0) || (arg.vertVelocity < 0 && arg.position.y + arg.height >= this.v_height)){
                         arg.position.y += arg.vertVelocity * delta_t;
