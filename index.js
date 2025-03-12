@@ -15,7 +15,7 @@ const VIRTUAL_X_START_PX = 32;
 const PLAYER_WIDTH_PX = 20;
 const PLAYER_HEIGTH_PX = 100;
 const HUMAN_MAXSPEED = 20;
-const BOT_MAXSPEED = 1;
+const BOT_MAXSPEED = 0.5;
 
 const HUMAN_VERTICAL_VELOCITY = 0.5;
 
@@ -187,7 +187,7 @@ class Ball {
     draw(context) {
         //console.log("drawing ball");
         context.beginPath();
-        context.arc(this.position.x, this.position.y, this.radius, 0, 2 * Math.PI);
+        context.arc(Math.round(this.position.x), Math.round(this.position.y), this.radius, 0, 2 * Math.PI);
         context.closePath();
         context.fillStyle = this.color;
         context.fill();
@@ -294,9 +294,12 @@ class GameState {
 
                 let hor_ver_ratio = ver_dist / hor_dist;
 
-                let velocity = Math.sqrt(ver_dist*ver_dist + hor_dist*hor_dist)/256;
+                let inverse_speed_factor = this.v_width / (1 + Math.abs(hor_dist));
+
+                let velocity = Math.sqrt(ver_dist*ver_dist + inverse_speed_factor**2)/256;
 
                 let rangeOfPeace = 10;
+                const RANGE_FACTOR = 1;
 
 
                 if (ball_y > bot_b){
@@ -306,13 +309,14 @@ class GameState {
                     arg.ballWithinRange = false;
                     arg.vertVelocity = -velocity;
                 } else {
-                    if (hor_dist >= 0 && hor_dist <= 3*arg.height)arg.ballWithinRange = true;
+                    if (hor_dist >= 0 && hor_dist <= RANGE_FACTOR*arg.height)arg.ballWithinRange = true;
                     else arg.ballWithinRange = false;
                     if ((ball_y < bot_center + rangeOfPeace && ball_y > bot_center - rangeOfPeace)){
                         if (arg.ballWithinRange) arg.vertVelocity = 0;
-                        else arg.vertVelocity = velocity /16;
+                        else arg.vertVelocity = velocity /4;
                     } 
                 }
+
 
             });
 
@@ -327,8 +331,10 @@ class GameState {
                     return false;
                 }
 
+                console.log(`before: ${arg.vertVelocity}`);
                 arg.vertVelocity = arg.ballWithinRange?(arg.vertVelocity + arg.acceleration) % 5:(arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
-                
+                console.log(`after: ${arg.vertVelocity}`);
+
                 let delta_t = arg.dynData['delta_t'];
 
                 if(!collisionCheck()){
