@@ -60,6 +60,29 @@ const GameStates={
     PLAY:'PLAY'
 }
 
+/**
+ * Function to draw a rectangle at [x,y] that is rotated about its origin angle degrees
+ * @param {CanvasRenderingContext2D} context 
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} width 
+ * @param {number} heigth 
+ * @param {number} angle Radians
+ * @param {string} fillStyle 
+ */
+function drawRotatedRect(context,x, y, width, heigth, angle, fillStyle){
+    context.save();
+
+    context.translate(x + width/2, y + heigth/2);
+
+    context.rotate(angle % Math.PI);
+
+    context.fillStyle = fillStyle;
+    context.fillRect(-width/2, -heigth/2, width, heigth);
+
+    context.restore();
+}
+
 
 class ErrorEmulator {
     /**
@@ -187,16 +210,21 @@ class Player {
         this.ballWithinRange = false;
         this.dynData = dynData;
         this.moveRequested = 0;
+        this.rotation = 0;
     }
+
 
     /**
      * 
      * @param {CanvasRenderingContext2D} context 
      */
     draw(context) {
-        context.fillStyle = this.color;
         //console.log(this.color);
-        context.fillRect(this.position.x, this.position.y, PLAYER_WIDTH_PX, PLAYER_HEIGTH_PX);
+
+        drawRotatedRect(context, this.position.x, this.position.y, this.width, this.height, this.rotation, this.color);
+
+
+        
     }
 
 
@@ -501,6 +529,12 @@ class GameState {
                 else if (event.code === 'ArrowDown'){
                     this.human.moveRequested = PendingMove.DOWN;
                 }
+                else if (event.code === 'ArrowLeft'){
+                    this.human.rotation += Math.PI/360;
+                }
+                else if (event.code === 'ArrowRight'){
+                    this.human.rotation -= Math.PI/360;
+                }
             }
         },
         {
@@ -608,6 +642,8 @@ class Renderer {
         this.gamestate.eventSubscribers.forEach(sub =>{
             this.canvas.addEventListener(sub.type, (event) => sub.fun(event));
         });
+
+        this.context.initTransform = this.context.getTransform();
     }
 
 
@@ -677,7 +713,7 @@ class Renderer {
 const gamestate = new GameState(WINSCORE);
 const renderer = new Renderer(gamestate);
 
-const FRAME_TIME_MS = 0;
+const FRAME_TIME_MS = 16;
 
 renderer.initRender();
 renderer.render();
