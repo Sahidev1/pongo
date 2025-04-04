@@ -7,6 +7,8 @@ const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
 const DEFAULT_SETTING_CANVAS_ID = "canvas";
 const DEFAULT_SETTING_BACKGROUND_COLOR = "black";
 
+const MAX_HUMAN_ROTATION = Math.PI/4;
+
 const VIRTUAL_WIDTH_PX = 1024;
 const VIRTUAL_HEIGHT_PX = 768;
 const VIRTUAL_RADIUS_PX = 12;
@@ -60,6 +62,8 @@ const GameStates={
     PLAY:'PLAY'
 }
 
+
+
 /**
  * Function to draw a rectangle at [x,y] that is rotated about its origin angle degrees
  * @param {CanvasRenderingContext2D} context 
@@ -83,6 +87,57 @@ function drawRotatedRect(context,x, y, width, heigth, angle, fillStyle){
     context.restore();
 }
 
+/**
+* Draws a line with an arrowhead at the end.
+* @param {CanvasRenderingContext2D} context
+* @param {*} x0
+* @param {*} y0
+* @param {*} x1
+* @param {*} y1
+*/
+function drawLinkingVect(context, x0, y0, x1, y1, col="red") {
+   context.save();
+
+   context.beginPath();
+   context.strokeStyle = col;
+   context.lineWidth = 4;
+   context.moveTo(x0, y0);
+   context.lineTo(x1, y1);
+   context.stroke();
+
+   // Draw arrowhead
+   const arrowSize = 10; // Size of the arrowhead
+   const angle = Math.atan2(y1 - y0, x1 - x0); // Angle of the line
+   const arrowAngle = Math.PI / 6; // Angle of the arrowhead from the line
+
+   // Calculate the two points of the arrowhead
+   const xArrow1 = x1 - arrowSize * Math.cos(angle - arrowAngle);
+   const yArrow1 = y1 - arrowSize * Math.sin(angle - arrowAngle);
+
+   const xArrow2 = x1 - arrowSize * Math.cos(angle + arrowAngle);
+   const yArrow2 = y1 - arrowSize * Math.sin(angle + arrowAngle);
+
+   // Draw the arrowhead
+   context.beginPath();
+   context.moveTo(x1, y1);
+   context.lineTo(xArrow1, yArrow1);
+   context.moveTo(x1, y1);
+   context.lineTo(xArrow2, yArrow2);
+   context.stroke();
+
+   context.restore();
+}
+
+/**
+ * 
+ * @param {CanvasRenderingContext2D} context 
+ */
+function drawVect(context, x, y, w, h, color="red"){
+    context.save();
+    context.strokeStyle=color;
+    context.strokeRect(x,y,w,h);
+    context.restore();
+}
 
 class ErrorEmulator {
     /**
@@ -157,6 +212,70 @@ class Vector {
         this.x = x;
         this.y = y;
     }
+
+    transform([a,b,c,d]){
+        let [x,y] = [this.x, this.y];
+        this.x = a*x + c*y;
+        this.y = b*x + d*y;
+    }
+
+    rotate(angle){
+        let transformer = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+        this.transform(transformer);
+    }
+
+    absolute(){
+        return Math.sqrt(this.x**2 + this.y**2);
+    }
+
+    scale(scalar){
+        this.x *= scalar;
+        this.y *= scalar;
+    }
+
+    /**
+     * calculates: V - W. where V is this vector and W is other vector
+     * @param {Vector} other 
+     * @returns {Vector} new diff vector
+     */
+    vectorDiff(other){
+        return new Vector(this.x - other.x, this.y - other.y);
+    }
+
+    vectorAdd(other){
+        return new Vector(this.x + other.x, this.y + other.y);
+    }
+
+    /**
+     * 
+     * @param {Vector} other 
+     */
+    dotProduct(other){
+        return (this.x * other.x) + (this.y * other.y); 
+    }
+
+    /**
+     * Project another vector "other" on to this vector
+     * returns new projected vector
+     * @param {Vector} other 
+     */
+    projectVector(other){
+        let dotp = this.dotProduct(other);
+        let absol_sqr = this.x**2 + this.y**2;
+        let scalar = dotp / absol_sqr;
+
+        let projection = new Vector(this.x, this.y);
+        projection.x *= scalar;
+        projection.y *= scalar;
+
+        return projection;
+    }
+
+    invert(){
+        this.x = -this.x;
+        this.y = -this.y;
+    }
+
 }
 
 class VelocityVector extends Vector {
@@ -182,6 +301,103 @@ class VelocityVector extends Vector {
         //console.log(this.velocityAngle);
         //console.log(this.speed);
     }
+}
+
+
+/**
+ * This function checks for collision between paddle rotated about its center and other objects.
+ * @param {Vector} rectVect vector to virtual non-rotated rectangle 
+ * @param {Vector} vect vector to thing collision check with
+ * @param {number} w 
+ * @param {number} h 
+ * @param {number} angle 
+ */
+function collCheckRect(rectVect,vect, w, h, angle, collMargin, leftcheck=true){
+    const X = new Vector(w/2,0);
+    const Y = new Vector(0,h/2);
+
+    //console.log(rectVect)
+    //console.log(vect)
+    console.log([leftcheck,w,h]);
+
+    X.rotate(angle); // basis vector x
+    Y.rotate(angle); // basic vector y
+    //console.log(X)
+    //console.log(Y)
+    const rectOrigin = new Vector(rectVect.x + w/2, rectVect.y + h/2);
+
+    //console.log(rectOrigin)
+
+    const drawFast = (v0, v1, col="red") => {
+        drawLinkingVect(renderer.getContext(), v0.x, v0.y, v1.x, v1.y, col);
+    }
+
+    let u = X.vectorAdd(Y);
+    let collCheckVect = rectOrigin.vectorDiff(u);
+
+    X.scale(2);
+    Y.scale(2);
+    //console.log(collCheckVect);
+
+    let relVect = vect.vectorDiff(collCheckVect);
+
+    drawFast(collCheckVect, collCheckVect.vectorAdd(X), "green")
+    drawFast(collCheckVect, collCheckVect.vectorAdd(Y), "green")
+
+    
+    //drawVect(renderer.getContext(), rectVect.x, rectVect.y, w, h)
+    //drawRotatedRect(renderer.getContext(),rectVect.x, rectVect.y, w,h, angle, "white")
+    drawLinkingVect(renderer.getContext(), 0,0, rectVect.x, rectVect.y, "white")
+    drawLinkingVect(renderer.getContext(), 0,0, vect.x, vect.y, "yellow");
+    drawLinkingVect(renderer.getContext(), 0,0, collCheckVect.x, collCheckVect.y,"blue")
+    let v0 = collCheckVect.vectorAdd(relVect)
+    drawLinkingVect(renderer.getContext(),  collCheckVect.x, collCheckVect.y, v0.x, v0.y)
+
+    //console.log(relVect)
+
+    let delta_x = X.projectVector(relVect);
+    let delta_y = Y.projectVector(relVect);
+
+    drawFast(collCheckVect, collCheckVect.vectorAdd(delta_x), "purple")
+    drawFast(collCheckVect, collCheckVect.vectorAdd(delta_y), "purple")
+    
+    //console.log(delta_x)
+    //console.log(delta_y)
+
+   
+    let delta_x_size = delta_x.absolute();
+    let delta_y_size = delta_y.absolute();
+   
+    let delta_x_dot = delta_x.dotProduct(X)
+    let delta_y_dot = delta_y.dotProduct(Y)
+
+   //console.log([delta_x_dot, delta_y_dot])
+
+    if (leftcheck){
+        //console.log("left")
+        let angle_condition = delta_x_dot >= 0 && delta_y_dot >= 0;
+        let delta_x_cond = delta_x_size >= w - collMargin && delta_x_size <= w + collMargin;
+        let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
+        return angle_condition && delta_x_cond && delta_y_cond;
+    } else {
+        //console.log("right")
+        let angle_condition = delta_x_dot <= 0 && delta_y_dot >=0;
+        //console.log(angle_condition)
+        //console.log(`angle condition: ${angle_condition}`);
+        
+        let delta_x_cond = delta_x_size >= 0 && delta_x_size <= collMargin;
+        let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
+        //console.log([angle_condition, delta_x_cond, delta_y_cond])
+        //if( angle_condition && delta_y_cond)console.log("hitter")
+        return angle_condition && delta_x_cond && delta_y_cond;
+    }
+    //console.log(`angle: ${angle_condition}, x_cond: ${delta_x_cond}, y_cond: ${delta_y_cond}`);
+    
+    //if (delta_y_cond) console.log(`x,y: ${[delta_x.x, delta_y.y]} ,theta: ${theta}`);
+
+    if(angle_condition) console.log([rectVect, vect])
+
+    return angle_condition && delta_x_cond && delta_y_cond;
 }
 
 
@@ -218,11 +434,14 @@ class Player {
      * 
      * @param {CanvasRenderingContext2D} context 
      */
-    draw(context) {
+    draw(context, vectorShow=false) {
         //console.log(this.color);
 
         drawRotatedRect(context, this.position.x, this.position.y, this.width, this.height, this.rotation, this.color);
 
+        if(vectorShow){
+            //drawLinkingVect(context, 0, 0, this.position.x, this.position.y,"red");
+        }
 
         
     }
@@ -256,13 +475,23 @@ class Ball {
      * 
      * @param {CanvasRenderingContext2D} context 
      */
-    draw(context) {
+    draw(context, vectorShow=false) {
         //console.log("drawing ball");
         context.beginPath();
         context.arc(Math.round(this.position.x), Math.round(this.position.y), this.radius, 0, 2 * Math.PI);
         context.closePath();
         context.fillStyle = this.color;
         context.fill();
+
+      /*  if(vectorShow){
+            drawLinkingVect(context, 0, 0, this.position.x, this.position.y, "yellow");
+            let tmpV = new Vector(this.velocity.x, this.velocity.y);
+            tmpV.scale(100);
+            let velV = this.position.vectorAdd(tmpV);
+            
+            drawLinkingVect(context, this.position.x, this.position.y, velV.x ,velV.y, "purple");
+
+        }*/
     }
 
     /**
@@ -280,7 +509,7 @@ class Ball {
     pauseMovement(pauseMS) {
         this.canMove = false;
         const cb = ()=>{
-            console.log("ping")
+            //console.log("ping")
             this.canMove = true;
         }
 
@@ -292,7 +521,7 @@ class Ball {
      * 
      */
     move() {
-        console.log(this.canMove);
+        //console.log(this.canMove);
         if (!this.canMove){
             return;
         }
@@ -307,7 +536,9 @@ class GameState {
      * 
      * @param {Settings} settings 
      */
-    constructor(winscore) {
+    constructor(winscore, vectorShow=false) {
+        this.vectorShow = vectorShow;
+
         let pheight = PLAYER_HEIGTH_PX;
         let pwidth = PLAYER_WIDTH_PX;
         this.pheight = pheight;
@@ -422,6 +653,8 @@ class GameState {
                         arg.position.y += arg.vertVelocity * delta_t;
                     }
                 }
+
+                
             }
         );
 
@@ -438,9 +671,15 @@ class GameState {
                     if(arg.position.x >= this.v_width - arg.radius) return BallCollisionState.HORIZONTAL_RIGHT;
                     if(arg.position.y <= arg.radius) return BallCollisionState.VERTICAL_TOP;
                     if(arg.position.y >= this.v_height - arg.radius) return BallCollisionState.VERTICAL_BOTTOM;
-                    if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return BallCollisionState.PLAYER_RIGHT;
-                    if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return BallCollisionState.PLAYER_LEFT;
+                    //if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return BallCollisionState.PLAYER_RIGHT;
+                    //if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return BallCollisionState.PLAYER_LEFT;
 
+                    if (arg.velocity.x >= 0 && collCheckRect(bot.position, arg.position, bot.width, bot.height, bot.rotation, arg.radius, false)) {
+                        console.log("player right collision")
+                        return BallCollisionState.PLAYER_RIGHT;
+                    }
+                    if (arg.velocity.x < 0 && collCheckRect(human.position, arg.position, human.width, human.height, human.rotation, arg.radius, true)) return BallCollisionState.PLAYER_LEFT;
+            
 
                     return BallCollisionState.NONE;                    
                 }
@@ -530,10 +769,11 @@ class GameState {
                     this.human.moveRequested = PendingMove.DOWN;
                 }
                 else if (event.code === 'ArrowLeft'){
-                    this.human.rotation += Math.PI/360;
+                    
+                    if(this.human.rotation < MAX_HUMAN_ROTATION) this.human.rotation += Math.PI/360;
                 }
                 else if (event.code === 'ArrowRight'){
-                    this.human.rotation -= Math.PI/360;
+                    if(this.human.rotation > -MAX_HUMAN_ROTATION) this.human.rotation -= Math.PI/360;
                 }
             }
         },
@@ -582,7 +822,7 @@ class GameState {
 
         this.ball.position.x = Math.floor(this.v_width / 2);
         this.ball.position.y = Math.floor(this.v_height / 2);
-        this.ball.velocity.x = this.x_vect;
+        this.ball.velocity.x = -this.x_vect;
         this.ball.velocity.y = this.y_vect;
 
         this.ball.pauseMovement(700);
@@ -705,12 +945,15 @@ class Renderer {
         this.fillCanvas(this.settings.background_color);
         //console.log(this.gamestate.drawable);
         this.renderScore();
-        this.gamestate.drawable.forEach(e => e.draw(this.context));
+        this.gamestate.drawable.forEach(e => e.draw(this.context, this.gamestate.vectorShow));
+        if(this.gamestate.vectorShow){
+            collCheckRect(this.gamestate.bot.position, this.gamestate.ball.position, PLAYER_WIDTH_PX, PLAYER_HEIGTH_PX, this.gamestate.bot.rotation, BALL_DEFAULT_RADIUS_PX, false);
+        }
     }
 }
 
 
-const gamestate = new GameState(WINSCORE);
+const gamestate = new GameState(WINSCORE, true);
 const renderer = new Renderer(gamestate);
 
 const FRAME_TIME_MS = 16;
@@ -738,6 +981,8 @@ const main0 = setInterval(() => {
     last_t = curr_t;
     //console.log(gamestate.state)
 }, FRAME_TIME_MS);
+
+console.log(main0)
 
 
 
