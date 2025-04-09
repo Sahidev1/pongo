@@ -7,7 +7,7 @@ const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
 const DEFAULT_SETTING_CANVAS_ID = "canvas";
 const DEFAULT_SETTING_BACKGROUND_COLOR = "black";
 
-const MAX_HUMAN_ROTATION = Math.PI/4;
+const MAX_HUMAN_ROTATION = Math.PI/8;
 
 const VIRTUAL_WIDTH_PX = 1024;
 const VIRTUAL_HEIGHT_PX = 768;
@@ -27,7 +27,7 @@ const INIT_PLAYER_VELOCITY_INCREMENT_FACTOR = 8;
 
 const BALL_DEFAULT_RADIUS_PX = 64;
 
-const BALL_INIT_SPEED = 0.5;
+const BALL_INIT_SPEED = 0.2;
 const BALL_SPEED_FACTOR = 1.03;
 
 const WINSCORE = 10;
@@ -303,6 +303,28 @@ class VelocityVector extends Vector {
     }
 }
 
+/**
+ * 
+ * @param {VelocityVector} velVector 
+ * @param {number} surfAngle 
+ * @param {boolean} toLeft
+ */
+function bounceAngle(velVector, surfAngle, toLeft=true){
+    let xMirrorTransform = [-1,0,0,1];
+    if(surfAngle === 0){
+        velVector.transform(xMirrorTransform);
+        return;
+    }
+    const X = new Vector(1,0);
+    const Y = new Vector(0,1);
+    X.rotate(-surfAngle);
+    Y.rotate(-surfAngle);
+    let transformer = [X.x, X.y, Y.x, Y.y]
+
+    velVector.transform(transformer);
+    velVector.transform(xMirrorTransform);
+}
+
 
 /**
  * This function checks for collision between paddle rotated about its center and other objects.
@@ -316,87 +338,37 @@ function collCheckRect(rectVect,vect, w, h, angle, collMargin, leftcheck=true){
     const X = new Vector(w/2,0);
     const Y = new Vector(0,h/2);
 
-    //console.log(rectVect)
-    //console.log(vect)
-    console.log([leftcheck,w,h]);
-
     X.rotate(angle); // basis vector x
     Y.rotate(angle); // basic vector y
-    //console.log(X)
-    //console.log(Y)
+
     const rectOrigin = new Vector(rectVect.x + w/2, rectVect.y + h/2);
-
-    //console.log(rectOrigin)
-
-    const drawFast = (v0, v1, col="red") => {
-        drawLinkingVect(renderer.getContext(), v0.x, v0.y, v1.x, v1.y, col);
-    }
 
     let u = X.vectorAdd(Y);
     let collCheckVect = rectOrigin.vectorDiff(u);
 
     X.scale(2);
     Y.scale(2);
-    //console.log(collCheckVect);
 
-    let relVect = vect.vectorDiff(collCheckVect);
-
-    drawFast(collCheckVect, collCheckVect.vectorAdd(X), "green")
-    drawFast(collCheckVect, collCheckVect.vectorAdd(Y), "green")
-
-    
-    //drawVect(renderer.getContext(), rectVect.x, rectVect.y, w, h)
-    //drawRotatedRect(renderer.getContext(),rectVect.x, rectVect.y, w,h, angle, "white")
-    drawLinkingVect(renderer.getContext(), 0,0, rectVect.x, rectVect.y, "white")
-    drawLinkingVect(renderer.getContext(), 0,0, vect.x, vect.y, "yellow");
-    drawLinkingVect(renderer.getContext(), 0,0, collCheckVect.x, collCheckVect.y,"blue")
-    let v0 = collCheckVect.vectorAdd(relVect)
-    drawLinkingVect(renderer.getContext(),  collCheckVect.x, collCheckVect.y, v0.x, v0.y)
-
-    //console.log(relVect)
+    let relVect = vect.vectorDiff(collCheckVect);    
 
     let delta_x = X.projectVector(relVect);
     let delta_y = Y.projectVector(relVect);
-
-    drawFast(collCheckVect, collCheckVect.vectorAdd(delta_x), "purple")
-    drawFast(collCheckVect, collCheckVect.vectorAdd(delta_y), "purple")
-    
-    //console.log(delta_x)
-    //console.log(delta_y)
-
    
     let delta_x_size = delta_x.absolute();
     let delta_y_size = delta_y.absolute();
    
-    let delta_x_dot = delta_x.dotProduct(X)
-    let delta_y_dot = delta_y.dotProduct(Y)
+    let delta_x_dot = delta_x.dotProduct(X);
+    let delta_y_dot = delta_y.dotProduct(Y);
 
-   //console.log([delta_x_dot, delta_y_dot])
+    let angle_condition = delta_x_dot >= 0 && delta_y_dot >= 0;
+    let delta_x_cond = delta_x_size >= w - collMargin && delta_x_size <= w + collMargin;
+    let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
 
-    if (leftcheck){
-        //console.log("left")
-        let angle_condition = delta_x_dot >= 0 && delta_y_dot >= 0;
-        let delta_x_cond = delta_x_size >= w - collMargin && delta_x_size <= w + collMargin;
-        let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
-        return angle_condition && delta_x_cond && delta_y_cond;
-    } else {
-        //console.log("right")
-        let angle_condition = delta_x_dot <= 0 && delta_y_dot >=0;
-        //console.log(angle_condition)
-        //console.log(`angle condition: ${angle_condition}`);
-        
-        let delta_x_cond = delta_x_size >= 0 && delta_x_size <= collMargin;
-        let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
-        //console.log([angle_condition, delta_x_cond, delta_y_cond])
-        //if( angle_condition && delta_y_cond)console.log("hitter")
-        return angle_condition && delta_x_cond && delta_y_cond;
-    }
-    //console.log(`angle: ${angle_condition}, x_cond: ${delta_x_cond}, y_cond: ${delta_y_cond}`);
-    
-    //if (delta_y_cond) console.log(`x,y: ${[delta_x.x, delta_y.y]} ,theta: ${theta}`);
+    if (leftcheck) return angle_condition && delta_x_cond && delta_y_cond;
 
-    if(angle_condition) console.log([rectVect, vect])
-
+    angle_condition = delta_x_dot <= 0 && delta_y_dot >=0;
+    delta_x_cond = delta_x_size >= 0 && delta_x_size <= collMargin;
+    delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
     return angle_condition && delta_x_cond && delta_y_cond;
 }
 
@@ -440,7 +412,7 @@ class Player {
         drawRotatedRect(context, this.position.x, this.position.y, this.width, this.height, this.rotation, this.color);
 
         if(vectorShow){
-            //drawLinkingVect(context, 0, 0, this.position.x, this.position.y,"red");
+            drawLinkingVect(context, 0, 0, this.position.x, this.position.y,"red");
         }
 
         
@@ -483,7 +455,7 @@ class Ball {
         context.fillStyle = this.color;
         context.fill();
 
-      /*  if(vectorShow){
+        if(vectorShow){
             drawLinkingVect(context, 0, 0, this.position.x, this.position.y, "yellow");
             let tmpV = new Vector(this.velocity.x, this.velocity.y);
             tmpV.scale(100);
@@ -491,7 +463,7 @@ class Ball {
             
             drawLinkingVect(context, this.position.x, this.position.y, velV.x ,velV.y, "purple");
 
-        }*/
+        }
     }
 
     /**
@@ -707,12 +679,12 @@ class GameState {
                             arg.position.y = arg.radius + 1;
                         break;
                     case BallCollisionState.PLAYER_RIGHT:
-                            arg.velocity.x = -arg.velocity.x;
+                            bounceAngle(arg.velocity, bot.rotation, false);
                             arg.position.x = bot.position.x - (arg.radius + 1);
                             arg.velocity.increaseSpeed(this.ballSpeedFactor);   
                         break;
                     case BallCollisionState.PLAYER_LEFT:
-                            arg.velocity.x = -arg.velocity.x;
+                            bounceAngle(arg.velocity, human.rotation, true);
                             arg.position.x = human.position.x + human.width + (arg.radius + 1); 
                             arg.velocity.increaseSpeed(this.ballSpeedFactor);
                         break;
@@ -770,10 +742,10 @@ class GameState {
                 }
                 else if (event.code === 'ArrowLeft'){
                     
-                    if(this.human.rotation < MAX_HUMAN_ROTATION) this.human.rotation += Math.PI/360;
+                    if(this.human.rotation < MAX_HUMAN_ROTATION) this.human.rotation += 8*Math.PI/180;
                 }
                 else if (event.code === 'ArrowRight'){
-                    if(this.human.rotation > -MAX_HUMAN_ROTATION) this.human.rotation -= Math.PI/360;
+                    if(this.human.rotation > -MAX_HUMAN_ROTATION) this.human.rotation -= 8*Math.PI/180;
                 }
             }
         },
@@ -946,9 +918,6 @@ class Renderer {
         //console.log(this.gamestate.drawable);
         this.renderScore();
         this.gamestate.drawable.forEach(e => e.draw(this.context, this.gamestate.vectorShow));
-        if(this.gamestate.vectorShow){
-            collCheckRect(this.gamestate.bot.position, this.gamestate.ball.position, PLAYER_WIDTH_PX, PLAYER_HEIGTH_PX, this.gamestate.bot.rotation, BALL_DEFAULT_RADIUS_PX, false);
-        }
     }
 }
 
