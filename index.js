@@ -21,7 +21,7 @@ const PLAYER_HEIGTH_PX = 100;
 const HUMAN_MAXSPEED = 20;
 const BOT_MAXSPEED = 1;
 
-const HUMAN_VERTICAL_VELOCITY = 0.5;
+const HUMAN_VERTICAL_VELOCITY = 0.4;
 
 const INIT_PLAYER_VERTITCAL_VELOCITY = 0;
 const INIT_PLAYER_ACCELERATION = 0;
@@ -29,7 +29,7 @@ const INIT_PLAYER_VELOCITY_INCREMENT_FACTOR = 8;
 
 const BALL_DEFAULT_RADIUS_PX = 64;
 
-const BALL_INIT_SPEED = 0.4;
+const BALL_INIT_SPEED = 0.37;
 const BALL_SPEED_FACTOR = 1.03;
 
 const WINSCORE = 4;
@@ -370,13 +370,12 @@ function collCheckRect(rectVect, vect, w, h, angle, collMargin, leftcheck = true
 
     let angle_condition = delta_x_dot >= 0 && delta_y_dot >= 0;
     let delta_x_cond = delta_x_size >= w - collMargin && delta_x_size <= w + collMargin;
-    let delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
+    let delta_y_cond = delta_y_size >= -collMargin && delta_y_size <= h + collMargin;
 
     if (leftcheck) return angle_condition && delta_x_cond && delta_y_cond;
 
     angle_condition = delta_x_dot <= 0 && delta_y_dot >= 0;
     delta_x_cond = delta_x_size >= 0 && delta_x_size <= collMargin;
-    delta_y_cond = delta_y_size >= 0 && delta_y_size <= h;
     return angle_condition && delta_x_cond && delta_y_cond;
 }
 
@@ -826,7 +825,7 @@ class GameState {
 
         this.ball.position.x = Math.floor(this.v_width / 2);
         this.ball.position.y = Math.floor(this.v_height / 2);
-        this.ball.velocity.x = -this.x_vect;
+        this.ball.velocity.x = Math.round(Math.random()) === 0?this.x_vect:-this.x_vect;
         this.ball.velocity.y = this.y_vect;
 
         this.ball.pauseMovement(700);
