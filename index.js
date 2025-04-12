@@ -1,6 +1,6 @@
 
 const DEFAULT_SETTING_WIDTH = 768;
-const DEFAULT_SETTING_HEIGHT = 768;
+const DEFAULT_SETTING_HEIGHT = 576;
 const DEFAULT_SETTING_X_START = 32;
 const DEFAULT_SETTING_Y_START = 32;
 const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
@@ -829,7 +829,7 @@ class Renderer {
 
         this.gamestate = gamestate;
         this.x_scale = settings.win_width / this.gamestate.v_width;
-        this.y_scale = settings.win_height / this.gamestate.v_width;
+        this.y_scale = settings.win_height / this.gamestate.v_height;
 
 
         this.menuEvent = null;
