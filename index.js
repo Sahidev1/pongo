@@ -29,10 +29,10 @@ const INIT_PLAYER_VELOCITY_INCREMENT_FACTOR = 8;
 
 const BALL_DEFAULT_RADIUS_PX = 64;
 
-const BALL_INIT_SPEED = 0.2;
+const BALL_INIT_SPEED = 0.4;
 const BALL_SPEED_FACTOR = 1.03;
 
-const WINSCORE = 10;
+const WINSCORE = 4;
 
 const BOT_ERROR_SIZE = 0.6;
 
@@ -391,6 +391,8 @@ class Player {
      * @param {boolean} isBot
      */
     constructor(isBot, dynData, color = "green", x = 0, y = 0, width, height, maxSpeed) {
+        this.initPosX = x;
+        this.initPosY = y;
         this.position = new Vector(x, y);
         this.score = 0;
         this.isBot = isBot;
@@ -408,6 +410,12 @@ class Player {
         this.moveRequested = 0;
         this.rotation = 0;
         this.rotRequested = PendingRotate.NONE;
+    }
+
+    reset(){
+        this.position.x = this.initPosX;
+        this.position.y = this.initPosY;
+        this.rotation = 0;
     }
 
 
@@ -711,10 +719,10 @@ class GameState {
             (arg) => {
                 let delta_t = arg.dynData['delta_t'];
 
-                if (arg.rotRequested === PendingRotate.CLOCKWISE && arg.rotation < MAX_HUMAN_ROTATION){
+                if (arg.rotRequested === PendingRotate.COUNTER && arg.rotation < MAX_HUMAN_ROTATION){
                     arg.rotation += MAX_ROT_SPEED * delta_t; 
                 }
-                if (arg.rotRequested === PendingRotate.COUNTER && arg.rotation > -MAX_HUMAN_ROTATION){
+                if (arg.rotRequested === PendingRotate.CLOCKWISE && arg.rotation > -MAX_HUMAN_ROTATION){
                     arg.rotation -= MAX_ROT_SPEED * delta_t; 
                 }
                 
@@ -802,6 +810,8 @@ class GameState {
 
     resetGame() {
         this.initBall();
+        this.human.reset();
+        this.bot.reset();
         this.score = 0;
         this.scoreboard.BOT = 0; this.scoreboard.HUMAN = 0;
         this.state = GameStates.MENU;
