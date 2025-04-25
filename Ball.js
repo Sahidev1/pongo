@@ -113,17 +113,7 @@ export class Ball {
         }
     }
 
-    /**
-    * @param {function eventCB(this) {}}
-    * 
-    */
-    addCallback(eventCB) {
-        this.callbacks = [eventCB, ...this.callbacks];
-    }
-
-    callCBs() {
-        this.callbacks.forEach(ev => ev(this));
-    }
+ 
 
     pauseMovement(pauseMS) {
         this.canMove = false;
