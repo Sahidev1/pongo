@@ -297,6 +297,15 @@ class VelocityVector extends Vector {
         //console.log(this.velocityAngle);
         //console.log(this.speed);
     }
+    
+    updateAngle(){
+        this.velocityAngle = Math.atan(this.y / this.x);
+    }
+
+    transform(matrix){
+        super.transform(matrix);
+        this.updateAngle();
+    }
 
     increaseSpeed(factor) {
         this.speed *= factor;
@@ -309,6 +318,8 @@ class VelocityVector extends Vector {
         //console.log(this.velocityAngle);
         //console.log(this.speed);
     }
+
+
 }
 
 /**
@@ -584,14 +595,14 @@ class GameState {
                 let bot_center = bot_t + arg.height / 2;
                 let hor_dist = arg.position.x - (this.ball.position.x + this.ball.radius);
                 let ver_dist = arg.position.y - bot_center;
-
+                let ball_angle = Math.abs(this.ball.velocity.velocityAngle);
                 let hor_ver_ratio = ver_dist / hor_dist;
-
+                console.log(ball_angle)
                 let inverse_speed_factor = this.v_width / (1 + Math.abs(hor_dist));
 
-                let velocity = Math.sqrt(ver_dist * ver_dist + inverse_speed_factor ** 2) / 256;
+                let velocity = Math.sqrt(3*ver_dist**2 + inverse_speed_factor ** 2)/256;
 
-                let rangeOfPeace = 10;
+                let rangeOfPeace = arg.height / 4;
                 const RANGE_FACTOR = 1;
 
 
@@ -604,6 +615,7 @@ class GameState {
                 } else {
                     if (hor_dist >= 0 && hor_dist <= RANGE_FACTOR * arg.height) arg.ballWithinRange = true;
                     else arg.ballWithinRange = false;
+                    
                     if ((ball_y < bot_center + rangeOfPeace && ball_y > bot_center - rangeOfPeace)) {
                         if (arg.ballWithinRange) arg.vertVelocity = 0;
                         else arg.vertVelocity = velocity / 4;
@@ -628,7 +640,7 @@ class GameState {
                 }
 
                 //console.log(`before: ${arg.vertVelocity}`);
-                arg.vertVelocity = arg.ballWithinRange ? (arg.vertVelocity + arg.acceleration) % (2 * arg.maxSpeed) : (arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
+                //arg.vertVelocity = arg.ballWithinRange ? (arg.vertVelocity + arg.acceleration) % (2 * arg.maxSpeed) : (arg.vertVelocity + arg.acceleration) % arg.maxSpeed;
                 //console.log(`after: ${arg.vertVelocity}`);
 
                 let delta_t = arg.dynData['delta_t'];
@@ -659,8 +671,6 @@ class GameState {
                     if (arg.position.x >= this.v_width - arg.radius) return BallCollisionState.HORIZONTAL_RIGHT;
                     if (arg.position.y <= arg.radius) return BallCollisionState.VERTICAL_TOP;
                     if (arg.position.y >= this.v_height - arg.radius) return BallCollisionState.VERTICAL_BOTTOM;
-                    //if((arg.position.x + arg.radius >= bot.position.x && arg.position.x <= bot.position.x) && (arg.position.y + arg.radius >= bot.position.y && arg.position.y - arg.radius  <= bot.position.y + bot.height) && arg.velocity.x >= 0) return BallCollisionState.PLAYER_RIGHT;
-                    //if((arg.position.x - arg.radius <= human.position.x + human.width && arg.position.x >= human.position.x + human.width ) && (arg.position.y + arg.radius >= human.position.y && arg.position.y - arg.radius  <= human.position.y + human.height) && arg.velocity.x <= 0) return BallCollisionState.PLAYER_LEFT;
 
                     if (arg.velocity.x >= 0 && collCheckRect(bot.position, arg.position, bot.width, bot.height, bot.rotation, arg.radius, false)) {
                         console.log("player right collision")
@@ -689,10 +699,12 @@ class GameState {
                     case BallCollisionState.VERTICAL_BOTTOM:
                         arg.velocity.y = -arg.velocity.y;
                         arg.position.y = this.v_height - (arg.radius + 1);
+                        arg.velocity.updateAngle();
                         break;
                     case BallCollisionState.VERTICAL_TOP:
                         arg.velocity.y = -arg.velocity.y;
                         arg.position.y = arg.radius + 1;
+                        arg.velocity.updateAngle();
                         break;
                     case BallCollisionState.PLAYER_RIGHT:
                         bounceAngle(arg.velocity, bot.rotation, false);
@@ -707,6 +719,8 @@ class GameState {
                     default:
                         break;
                 }
+
+            
             }
         )
 
