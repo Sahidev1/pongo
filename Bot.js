@@ -2,19 +2,23 @@
 import { Player } from "./Player.js";
 import { ErrorEmulator } from "./ErrorEmulator.js";
 import { VIRTUAL_HEIGHT_PX, BOT_ERROR_SIZE, VIRTUAL_WIDTH_PX, BOT_MIN_ERROR_SIZE, BOT_MAXSPEED } from "./constants.js";
+import { Ball } from "./Ball.js";
 
 
 export class Bot extends Player{
 
     constructor(dynData, color = "green", x = 0, y = 0, width, height, maxSpeed){
         super(true, dynData, color,x, y, width, height, maxSpeed)
-        this.botErrorEmulator = new ErrorEmulator(BOT_ERROR_SIZE, BOT_MIN_ERROR_SIZE, false);
+        this.botErrorEmulator = new ErrorEmulator(BOT_ERROR_SIZE, BOT_MIN_ERROR_SIZE, true);
+        this.velErr = 1;
+        
         
     }
 
     updateState(){
         this.#adjustVerticalVelocity();
         this.#move();
+        //this.velErr = this.botErrorEmulator.emulateError(this.velErr);
     }
 
     #move(){
@@ -31,7 +35,7 @@ export class Bot extends Player{
 
         if (!collisionCheck()) {
             //console.log("collider");
-            this.position.y += this.botErrorEmulator.emulateError(this.vertVelocity) * this.botErrorEmulator.emulateError(delta_t);
+            this.position.y += this.vertVelocity * delta_t;
         } else {
             if ((this.vertVelocity > 0 && this.position.y <= 0) || (this.vertVelocity < 0 && this.position.y + this.height >= VIRTUAL_HEIGHT_PX)) {
                 this.position.y += this.vertVelocity * delta_t;
@@ -57,6 +61,7 @@ export class Bot extends Player{
 
         let velocity = Math.sqrt(3*ver_dist**2 + inverse_speed_factor ** 2)/256;
         velocity = velocity > BOT_MAXSPEED?BOT_MAXSPEED:velocity;
+        velocity *= this.velErr;
         //console.log(velocity)
         
         let rangeOfPeace = this.height / 4;
@@ -75,7 +80,7 @@ export class Bot extends Player{
             
             if ((ball_y < bot_center + rangeOfPeace && ball_y > bot_center - rangeOfPeace)) {
                 if (this.ballWithinRange) this.vertVelocity = 0;
-                else this.vertVelocity = velocity / 4;
+                else this.vertVelocity = velocity/2;
             }
         }
 

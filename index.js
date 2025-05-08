@@ -3,7 +3,7 @@ import { Renderer } from "./Renderer.js";
 import { GameStates } from "./constants.js";
 import { WINSCORE } from "./constants.js";
 
-const gamestate = new GameState(WINSCORE, true);
+const gamestate = new GameState(WINSCORE, false);
 const renderer = new Renderer(gamestate);
 
 const FRAME_TIME_MS = 16;

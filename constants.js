@@ -4,7 +4,7 @@ export const DEFAULT_SETTING_X_START = 32;
 export const DEFAULT_SETTING_Y_START = 32;
 export const DEFAULT_SETTING_CANVAS_CONTAINER_ID = "canvas-container";
 export const DEFAULT_SETTING_CANVAS_ID = "canvas";
-export const DEFAULT_SETTING_BACKGROUND_COLOR = "black";
+export const DEFAULT_SETTING_BACKGROUND_COLOR = "rgba(0, 0, 0, 0.65)";
 
 export const MAX_HUMAN_ROTATION = Math.PI / 8;
 
@@ -18,7 +18,7 @@ export const VIRTUAL_X_START_PX = 32;
 export const PLAYER_WIDTH_PX = 20;
 export const PLAYER_HEIGTH_PX = 100;
 export const HUMAN_MAXSPEED = 20;
-export const BOT_MAXSPEED = 0.3;
+export const BOT_MAXSPEED = 5;
 
 export const HUMAN_VERTICAL_VELOCITY = 0.4;
 export const INIT_PLAYER_VERTITCAL_VELOCITY = 0;
