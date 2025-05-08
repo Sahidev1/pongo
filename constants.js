@@ -18,7 +18,7 @@ export const VIRTUAL_X_START_PX = 32;
 export const PLAYER_WIDTH_PX = 20;
 export const PLAYER_HEIGTH_PX = 100;
 export const HUMAN_MAXSPEED = 20;
-export const BOT_MAXSPEED = 1;
+export const BOT_MAXSPEED = 0.3;
 
 export const HUMAN_VERTICAL_VELOCITY = 0.4;
 export const INIT_PLAYER_VERTITCAL_VELOCITY = 0;
@@ -28,7 +28,8 @@ export const BALL_DEFAULT_RADIUS_PX = 64;
 export const BALL_INIT_SPEED = 0.37;
 export const BALL_SPEED_FACTOR = 1.03;
 export const WINSCORE = 4;
-export const BOT_ERROR_SIZE = 0.6;
+export const BOT_ERROR_SIZE = 0.9;
+export const BOT_MIN_ERROR_SIZE = 0;
 
 
 export const BallCollisionState = {

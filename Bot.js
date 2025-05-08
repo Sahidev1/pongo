@@ -1,14 +1,14 @@
 
 import { Player } from "./Player.js";
 import { ErrorEmulator } from "./ErrorEmulator.js";
-import { VIRTUAL_HEIGHT_PX, BOT_ERROR_SIZE, VIRTUAL_WIDTH_PX } from "./constants.js";
+import { VIRTUAL_HEIGHT_PX, BOT_ERROR_SIZE, VIRTUAL_WIDTH_PX, BOT_MIN_ERROR_SIZE, BOT_MAXSPEED } from "./constants.js";
 
 
 export class Bot extends Player{
 
     constructor(dynData, color = "green", x = 0, y = 0, width, height, maxSpeed){
         super(true, dynData, color,x, y, width, height, maxSpeed)
-        this.botErrorEmulator = new ErrorEmulator(BOT_ERROR_SIZE);
+        this.botErrorEmulator = new ErrorEmulator(BOT_ERROR_SIZE, BOT_MIN_ERROR_SIZE, false);
         
     }
 
@@ -52,11 +52,13 @@ export class Bot extends Player{
         let ver_dist = this.position.y - bot_center;
         let ball_angle = Math.abs(ball.velocity.velocityAngle);
         let hor_ver_ratio = ver_dist / hor_dist;
-        console.log(ball_angle)
+        //console.log(ball_angle)
         let inverse_speed_factor = VIRTUAL_WIDTH_PX / (1 + Math.abs(hor_dist));
 
         let velocity = Math.sqrt(3*ver_dist**2 + inverse_speed_factor ** 2)/256;
-
+        velocity = velocity > BOT_MAXSPEED?BOT_MAXSPEED:velocity;
+        //console.log(velocity)
+        
         let rangeOfPeace = this.height / 4;
         const RANGE_FACTOR = 1;
 

@@ -12,6 +12,14 @@ export class VelocityVector extends Vector {
         //console.log(this.speed);
     }
     
+    updateVelocityVector(){
+        let r = Math.sqrt(this.x**2 + this.y**2);
+        this.x = Math.cos(this.velocityAngle)*r;
+        this.y = Math.sin(this.velocityAngle)*r;
+        //this.scale(this.speed);
+ 
+    }
+
     updateAngle(){
         this.velocityAngle = Math.atan(this.y / this.x);
     }
@@ -23,10 +31,7 @@ export class VelocityVector extends Vector {
 
     increaseSpeed(factor) {
         this.speed *= factor;
-        let x_vect = this.x * factor;
-        let y_vect = this.y * factor;
-        this.x = x_vect;
-        this.y = y_vect;
+        this.scale(factor);
 
         //console.log([this.x, this.y]);
         //console.log(this.velocityAngle);

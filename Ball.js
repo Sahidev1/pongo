@@ -73,6 +73,14 @@ export class Ball {
                 break;
         }
 
+        //console.log(this.velocity.velocityAngle * 360 / (2*Math.PI));
+
+        let max_angle = Math.PI/4;
+        if (Math.abs(this.velocity.velocityAngle) > max_angle){
+            this.velocity.velocityAngle = Math.sign(this.velocity.velocityAngle) * max_angle;
+            this.velocity.updateVelocityVector();
+        }
+
     }
 
     initBall() {
@@ -109,8 +117,13 @@ export class Ball {
             let velV = this.position.vectorAdd(tmpV);
 
             drawLinkingVect(context, this.position.x, this.position.y, velV.x, velV.y, "purple");
+            drawLinkingVect(context, this.position.x, this.position.y, this.position.x + 128, this.position.y, "blue");
+            drawLinkingVect(context, this.position.x, this.position.y, this.position.x , this.position.y + 128, "blue");
+            
 
         }
+
+
     }
 
  
