@@ -27,7 +27,7 @@ export const INIT_PLAYER_VELOCITY_INCREMENT_FACTOR = 8;
 export const BALL_DEFAULT_RADIUS_PX = 64;
 export const BALL_INIT_SPEED = 0.37;
 export const BALL_SPEED_FACTOR = 1.03;
-export const WINSCORE = 4;
+export const WINSCORE = 10;
 export const BOT_ERROR_SIZE = 0.9;
 export const BOT_MIN_ERROR_SIZE = 0;
 
